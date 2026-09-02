@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\LeaveRequest;
-use App\Models\CourseReplacement;
+use App\Models\LeaveBalance;
 use Illuminate\Http\Request;
 
 class LeaveRequestController extends Controller
@@ -21,7 +21,6 @@ class LeaveRequestController extends Controller
 
             $user = $request->user();
 
-            // حساب الأيام
             $start = new \DateTime($request->start_date);
             $end = new \DateTime($request->end_date);
             $days = $start->diff($end)->days + 1;
@@ -30,7 +29,6 @@ class LeaveRequestController extends Controller
                 $days = 0.5;
             }
 
-            // حفظ الفايل إلا كان
             $proofPath = null;
             if ($request->hasFile('proof')) {
                 $proofPath = $request->file('proof')->store('proofs', 'public');
@@ -63,10 +61,54 @@ class LeaveRequestController extends Controller
     public function index(Request $request)
     {
         return response()->json(
-            LeaveRequest::with(['leaveType', 'courseReplacements.replacementUser'])
+            LeaveRequest::with(['leaveType'])
                 ->where('user_id', $request->user()->id)
                 ->latest()
                 ->get()
         );
+    }
+
+    public function pendingForManager(Request $request)
+    {
+        return response()->json(
+            LeaveRequest::with(['user', 'leaveType'])
+                ->where('status', 'pending_manager')
+                ->latest()
+                ->get()
+        );
+    }
+
+    public function updateStatus(Request $request, $id)
+    {
+        $request->validate([
+            'status' => 'required|in:approved,rejected',
+            'rejection_reason' => 'nullable|string',
+        ]);
+
+        $leaveRequest = LeaveRequest::findOrFail($id);
+        $leaveRequest->status = $request->status;
+
+        if ($request->status === 'rejected') {
+            $leaveRequest->rejection_reason = $request->rejection_reason;
+        }
+
+        $leaveRequest->save();
+
+        if ($request->status === 'approved') {
+            $balance = LeaveBalance::where('user_id', $leaveRequest->user_id)
+                ->where('leave_type_id', $leaveRequest->leave_type_id)
+                ->first();
+
+            if ($balance) {
+                $balance->used_days += $leaveRequest->calculated_days;
+                $balance->remaining_days = max(0, $balance->allocated_days - $balance->used_days);
+                $balance->save();
+            }
+        }
+
+        return response()->json([
+            'message' => 'Statut de la demande mis à jour avec succès',
+            'leave_request' => $leaveRequest
+        ]);
     }
 }

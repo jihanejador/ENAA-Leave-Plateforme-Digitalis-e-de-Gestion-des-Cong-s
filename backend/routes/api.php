@@ -10,4 +10,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::get('/leave-requests', [LeaveRequestController::class, 'index']);
     Route::post('/leave-requests', [LeaveRequestController::class, 'store']);
+
+    Route::get('/manager/leave-requests/pending', [LeaveRequestController::class, 'pendingForManager']);
+    Route::patch('/manager/leave-requests/{id}/status', [LeaveRequestController::class, 'updateStatus']);
 });

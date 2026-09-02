@@ -11,58 +11,53 @@ class LeaveRequestController extends Controller
 {
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'leave_type_id' => 'required|exists:leave_types,id',
-            'start_date' => 'required|date',
-            'end_date' => 'required|date|after_or_equal:start_date',
-            'is_half_day' => 'boolean',
-            'reason' => 'nullable|string',
-            'proof' => 'nullable|file|mimes:pdf,jpg,png|max:2048',
-            'replacements' => 'nullable|array',
-            'replacements.*.replacement_user_id' => 'required|exists:users,id',
-            'replacements.*.course_module' => 'required|string',
-            'replacements.*.affected_date' => 'required|date',
-        ]);
+        try {
+            $validated = $request->validate([
+                'leave_type_id' => 'required',
+                'start_date' => 'required|date',
+                'end_date' => 'required|date',
+                'reason' => 'nullable|string',
+            ]);
 
-        $user = $request->user();
+            $user = $request->user();
 
-        $start = new \DateTime($validated['start_date']);
-        $end = new \DateTime($validated['end_date']);
-        $days = $start->diff($end)->days + 1;
-        if ($request->is_half_day) $days = 0.5;
+            // حساب الأيام
+            $start = new \DateTime($request->start_date);
+            $end = new \DateTime($request->end_date);
+            $days = $start->diff($end)->days + 1;
 
-        $proofPath = null;
-        if ($request->hasFile('proof')) {
-            $proofPath = $request->file('proof')->store('proofs', 'public');
-        }
-
-        $leaveRequest = LeaveRequest::create([
-            'user_id' => $user->id,
-            'leave_type_id' => $validated['leave_type_id'],
-            'start_date' => $validated['start_date'],
-            'end_date' => $validated['end_date'],
-            'is_half_day' => $validated['is_half_day'] ?? false,
-            'calculated_days' => $days,
-            'reason' => $validated['reason'] ?? null,
-            'proof_path' => $proofPath,
-            'status' => 'pending_manager',
-        ]);
-
-        if ($user->is_trainer && !empty($validated['replacements'])) {
-            foreach ($validated['replacements'] as $rep) {
-                CourseReplacement::create([
-                    'leave_request_id' => $leaveRequest->id,
-                    'replacement_user_id' => $rep['replacement_user_id'],
-                    'course_module' => $rep['course_module'],
-                    'affected_date' => $rep['affected_date'],
-                ]);
+            if ($request->has('is_half_day') && $request->is_half_day == '1') {
+                $days = 0.5;
             }
-        }
 
-        return response()->json([
-            'message' => 'Demande de congé créée avec succès',
-            'leave_request' => $leaveRequest->load('courseReplacements')
-        ], 201);
+            // حفظ الفايل إلا كان
+            $proofPath = null;
+            if ($request->hasFile('proof')) {
+                $proofPath = $request->file('proof')->store('proofs', 'public');
+            }
+
+            $leaveRequest = LeaveRequest::create([
+                'user_id' => $user->id,
+                'leave_type_id' => (int) $request->leave_type_id,
+                'start_date' => $request->start_date,
+                'end_date' => $request->end_date,
+                'is_half_day' => $request->is_half_day == '1' ? true : false,
+                'calculated_days' => $days,
+                'reason' => $request->reason,
+                'proof_path' => $proofPath,
+                'status' => 'pending_manager',
+            ]);
+
+            return response()->json([
+                'message' => 'Demande envoyée avec succès',
+                'leave_request' => $leaveRequest
+            ], 201);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => $e->getMessage()
+            ], 422);
+        }
     }
 
     public function index(Request $request)

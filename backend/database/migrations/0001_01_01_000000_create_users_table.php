@@ -16,7 +16,7 @@ return new class extends Migration
             $table->foreignId('department_id')->nullable();
             $table->foreignId('manager_id')->nullable()->constrained('users')->nullOnDelete();
             $table->boolean('is_trainer')->default(false);
-            $table->enum('role', ['employee', 'manager', 'hr'])->default('employee');
+            $table->enum('role', ['employee', 'manager', 'hr', 'rh'])->default('employee');
             $table->rememberToken();
             $table->timestamps();
         });

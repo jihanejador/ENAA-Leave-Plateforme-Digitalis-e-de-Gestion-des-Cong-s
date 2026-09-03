@@ -78,7 +78,41 @@ class LeaveRequestController extends Controller
         );
     }
 
-    public function updateStatus(Request $request, $id)
+    public function managerApprove(Request $request, $id)
+    {
+        $request->validate([
+            'status' => 'required|in:approved,rejected',
+            'rejection_reason' => 'nullable|string',
+        ]);
+
+        $leaveRequest = LeaveRequest::findOrFail($id);
+
+        if ($request->status === 'rejected') {
+            $leaveRequest->status = 'rejected';
+            $leaveRequest->rejection_reason = $request->rejection_reason;
+        } else {
+            $leaveRequest->status = 'pending_hr';
+        }
+
+        $leaveRequest->save();
+
+        return response()->json([
+            'message' => 'Demande traitée par le manager avec succès',
+            'leave_request' => $leaveRequest
+        ]);
+    }
+
+    public function pendingForHR(Request $request)
+    {
+        return response()->json(
+            LeaveRequest::with(['user', 'leaveType'])
+                ->where('status', 'pending_hr')
+                ->latest()
+                ->get()
+        );
+    }
+
+    public function hrApprove(Request $request, $id)
     {
         $request->validate([
             'status' => 'required|in:approved,rejected',
@@ -107,7 +141,7 @@ class LeaveRequestController extends Controller
         }
 
         return response()->json([
-            'message' => 'Statut de la demande mis à jour avec succès',
+            'message' => 'Demande validée définitivement par le RH',
             'leave_request' => $leaveRequest
         ]);
     }

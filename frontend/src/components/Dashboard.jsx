@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import API from '../api/axios';
 import LeaveForm from './LeaveForm';
 import ManagerDashboard from './ManagerDashboard';
+import HRDashboard from './HRDashboard';
 
 export default function Dashboard() {
   const [user, setUser] = useState(null);
@@ -18,7 +19,7 @@ export default function Dashboard() {
 
   if (!user) return <div className="p-8 text-center text-gray-600">Chargement...</div>;
 
-  const isManager = user.role?.toLowerCase() === 'manager';
+  const role = user.role?.toLowerCase();
 
   return (
     <div className="p-8 max-w-5xl mx-auto">
@@ -28,12 +29,11 @@ export default function Dashboard() {
       </div>
 
       {}
-      {isManager ? (
-        <ManagerDashboard />
-      ) : (
+      {role === 'manager' && <ManagerDashboard />}
+      {(role === 'rh' || role === 'hr') && <HRDashboard />}
+      {role === 'employee' && (
         <>
           <LeaveForm onRequestCreated={fetchUserData} />
-
           <h2 className="text-xl font-bold mb-4 text-gray-700">Vos Soldes de Congés</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {user.leave_balances?.map((balance) => (

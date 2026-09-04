@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import API from '../api/axios';
+import TeamCalendar from './TeamCalendar';
 
 export default function ManagerDashboard() {
   const [requests, setRequests] = useState([]);
@@ -39,69 +40,88 @@ export default function ManagerDashboard() {
   if (loading) return <p className="text-gray-500 p-4">Chargement des demandes...</p>;
 
   return (
-    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-      <h2 className="text-xl font-bold mb-4 text-gray-800">Validation des Demandes de Congé</h2>
+    <div className="space-y-6">
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <h2 className="text-xl font-bold mb-4 text-gray-800">Validation des Demandes de Congé</h2>
 
-      {requests.length === 0 ? (
-        <p className="text-gray-500 py-4">Aucune demande en attente de validation.</p>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-sm">
-            <thead>
-              <tr className="bg-gray-50 border-b text-gray-600">
-                <th className="p-3">Employé</th>
-                <th className="p-3">Type</th>
-                <th className="p-3">Période</th>
-                <th className="p-3">Remplacement</th>
-                <th className="p-3">Jours</th>
-                <th className="p-3">Motif</th>
-                <th className="p-3">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {requests.map((req) => (
-                <tr key={req.id} className="border-b hover:bg-gray-50 transition">
-                  <td className="p-3 font-semibold text-gray-800">{req.user?.name}</td>
-                  <td className="p-3 text-blue-600 font-medium">{req.leave_type?.name}</td>
-                  <td className="p-3 text-gray-600">
-                    {formatDate(req.start_date)} au {formatDate(req.end_date)}
-                  </td>
-                  <td className="p-3">
-                    {req.course_replacements && req.course_replacements.length > 0 ? (
-                      <div className="text-xs">
-                        <span className="font-semibold text-blue-600 block">
-                          {req.course_replacements[0].course_module}
-                        </span>
-                        <span className="text-gray-500">
-                          Par: {req.course_replacements[0].replacement_user?.name || 'N/A'}
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-gray-400 text-xs">Aucun</span>
-                    )}
-                  </td>
-                  <td className="p-3 font-bold">{req.calculated_days} j</td>
-                  <td className="p-3 text-gray-500">{req.reason || '-'}</td>
-                  <td className="p-3 flex gap-2">
-                    <button 
-                      onClick={() => handleAction(req.id, 'approved')} 
-                      className="bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-green-700 transition"
-                    >
-                      Approuver
-                    </button>
-                    <button 
-                      onClick={() => handleAction(req.id, 'rejected')} 
-                      className="bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-red-700 transition"
-                    >
-                      Refuser
-                    </button>
-                  </td>
+        {requests.length === 0 ? (
+          <p className="text-gray-500 py-4">Aucune demande en attente de validation.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-sm">
+              <thead>
+                <tr className="bg-gray-50 border-b text-gray-600">
+                  <th className="p-3">Employé</th>
+                  <th className="p-3">Type</th>
+                  <th className="p-3">Période</th>
+                  <th className="p-3">Remplacement</th>
+                  <th className="p-3">Jours</th>
+                  <th className="p-3">Motif & Météo / Pièce</th>
+                  <th className="p-3">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+              </thead>
+              <tbody>
+                {requests.map((req) => {
+                  const filePath = req.proof_path || req.document_path;
+                  return (
+                    <tr key={req.id} className="border-b hover:bg-gray-50 transition">
+                      <td className="p-3 font-semibold text-gray-800">{req.user?.name}</td>
+                      <td className="p-3 text-blue-600 font-medium">{req.leave_type?.name}</td>
+                      <td className="p-3 text-gray-600">
+                        Du {formatDate(req.start_date)} au {formatDate(req.end_date)}
+                      </td>
+                      <td className="p-3">
+                        {req.course_replacements && req.course_replacements.length > 0 ? (
+                          <div className="text-xs">
+                            <span className="font-semibold text-blue-600 block">
+                              {req.course_replacements[0].course_module}
+                            </span>
+                            <span className="text-gray-500">
+                              Par: {req.course_replacements[0].replacement_user?.name || 'N/A'}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 text-xs">Aucun</span>
+                        )}
+                      </td>
+                      <td className="p-3 font-bold">{req.calculated_days} j</td>
+                      <td className="p-3 text-gray-500">
+                        <div>{req.reason || '-'}</div>
+                        {filePath && (
+                          <a 
+                            href={`http://localhost:8000/storage/${filePath}`} 
+                            target="_blank" 
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline mt-1 font-semibold"
+                          >
+                            📄 Voir Pièce
+                          </a>
+                        )}
+                      </td>
+                      <td className="p-3 flex gap-2">
+                        <button 
+                          onClick={() => handleAction(req.id, 'approved')} 
+                          className="bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-green-700 transition"
+                        >
+                          Approuver
+                        </button>
+                        <button 
+                          onClick={() => handleAction(req.id, 'rejected')} 
+                          className="bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-red-700 transition"
+                        >
+                          Refuser
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <TeamCalendar />
     </div>
   );
 }

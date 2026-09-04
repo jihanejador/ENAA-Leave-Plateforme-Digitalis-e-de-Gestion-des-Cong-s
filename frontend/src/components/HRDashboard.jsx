@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import API from '../api/axios';
 import TeamCalendar from './TeamCalendar';
+import * as XLSX from 'xlsx';
+import LeaveTypeAdmin from './LeaveTypeAdmin';
 
 export default function HRDashboard() {
   const [requests, setRequests] = useState([]);
@@ -37,12 +39,50 @@ export default function HRDashboard() {
     return dateString.split('T')[0];
   };
 
+  const exportToExcel = async () => {
+    try {
+      const res = await API.get('/leave-requests');
+      const allRequests = res.data || [];
+      
+      const approvedRequests = allRequests.filter(r => r.status === 'approved');
+
+      const dataToExport = approvedRequests.map(req => ({
+        'Employé': req.user?.name || 'N/A',
+        'Email': req.user?.email || 'N/A',
+        'Type de Congé': req.leave_type?.name || 'N/A',
+        'Date Début': formatDate(req.start_date),
+        'Date Fin': formatDate(req.end_date),
+        'Jours Déduits': req.calculated_days,
+        'Motif': req.reason || '-',
+        'Statut': 'Approuvé'
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Rapport_Paie_Conges");
+
+      XLSX.writeFile(workbook, `Rapport_Conges_Paie_${new Date().toISOString().split('T')[0]}.xlsx`);
+    } catch (err) {
+      console.error("Erreur d'exportation:", err);
+      alert("Erreur lors de l'exportation des données.");
+    }
+  };
+
   if (loading) return <p className="text-gray-500 p-4">Chargement des demandes en attente de validation RH...</p>;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-left">
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-        <h2 className="text-xl font-bold mb-4 text-purple-800">Espace RH : Validation Finale des Congés</h2>
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-bold text-purple-800">Espace RH : Validation Finale & Gestion Paie</h2>
+          
+          <button
+            onClick={exportToExcel}
+            className="bg-green-600 hover:bg-green-700 text-white font-semibold text-xs px-4 py-2 rounded-lg transition flex items-center gap-2 shadow-sm"
+          >
+             Exporter Rapport Paie (Excel)
+          </button>
+        </div>
 
         {requests.length === 0 ? (
           <p className="text-gray-500 py-4">Aucune demande en attente de validation RH.</p>
@@ -121,6 +161,7 @@ export default function HRDashboard() {
         )}
       </div>
 
+      <LeaveTypeAdmin />
       <TeamCalendar />
     </div>
   );

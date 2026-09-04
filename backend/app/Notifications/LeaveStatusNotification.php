@@ -3,52 +3,34 @@
 namespace App\Notifications;
 
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use App\Models\LeaveRequest;
 
 class LeaveStatusNotification extends Notification
 {
     use Queueable;
 
-    /**
-     * Create a new notification instance.
-     */
-    public function __construct()
+    public $leaveRequest;
+
+    public function __construct(LeaveRequest $leaveRequest)
     {
-        //
+        $this->leaveRequest = $leaveRequest;
     }
 
-    /**
-     * Get the notification's delivery channels.
-     *
-     * @return array<int, string>
-     */
-    public function via(object $notifiable): array
+    public function via($notifiable)
     {
-        return ['mail'];
+        return ['database']; 
     }
 
-    /**
-     * Get the mail representation of the notification.
-     */
-    public function toMail(object $notifiable): MailMessage
+    public function toArray($notifiable)
     {
-        return (new MailMessage)
-            ->line('The introduction to the notification.')
-            ->action('Notification Action', url('/'))
-            ->line('Thank you for using our application!');
-    }
+        $statusText = $this->leaveRequest->status === 'approved' ? 'approuvée' : ($this->leaveRequest->status === 'rejected' ? 'refusée' : 'mise à jour');
 
-    /**
-     * Get the array representation of the notification.
-     *
-     * @return array<string, mixed>
-     */
-    public function toArray(object $notifiable): array
-    {
         return [
-            //
+            'title' => 'Mise à jour de congé',
+            'message' => "Votre demande de congé du {$this->leaveRequest->start_date} au {$this->leaveRequest->end_date} a été {$statusText}.",
+            'leave_request_id' => $this->leaveRequest->id,
+            'status' => $this->leaveRequest->status
         ];
     }
 }

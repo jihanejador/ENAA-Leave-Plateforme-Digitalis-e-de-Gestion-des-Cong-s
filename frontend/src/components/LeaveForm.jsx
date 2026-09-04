@@ -23,9 +23,18 @@ export default function LeaveForm({ onRequestCreated }) {
   }, []);
 
   const currentTypeConfig = leaveTypes.find(b => b.leave_type?.id === parseInt(selectedType))?.leave_type;
+  
+  const isMaladieOrRequiresProof = Boolean(currentTypeConfig?.requires_proof) || 
+    currentTypeConfig?.name?.toLowerCase().includes('maladie');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (isMaladieOrRequiresProof && !proof) {
+      setMessage('Veuillez joindre une pièce justificative.');
+      return;
+    }
+
     const formData = new FormData();
     formData.append('leave_type_id', selectedType);
     formData.append('start_date', startDate);
@@ -53,6 +62,7 @@ export default function LeaveForm({ onRequestCreated }) {
       setProposedCatchupDate('');
       if (onRequestCreated) onRequestCreated();
     } catch (err) {
+      console.error(err);
       setMessage('Erreur lors de l\'envoi de la demande.');
     }
   };
@@ -60,7 +70,11 @@ export default function LeaveForm({ onRequestCreated }) {
   return (
     <form onSubmit={handleSubmit} className="bg-white p-6 rounded-xl shadow-sm border mb-6 text-left">
       <h2 className="text-lg font-bold mb-4 text-gray-800">Nouvelle Demande de Congé</h2>
-      {message && <div className="p-3 bg-blue-50 text-blue-600 rounded mb-4 text-sm font-medium">{message}</div>}
+      {message && (
+        <div className={`p-3 rounded mb-4 text-sm font-medium ${message.includes('succès') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
+          {message}
+        </div>
+      )}
 
       <div className="mb-4">
         <label className="block text-sm font-semibold mb-1 text-gray-700">Type de Congé</label>
@@ -152,15 +166,20 @@ export default function LeaveForm({ onRequestCreated }) {
         </div>
       </div>
 
-      {Boolean(currentTypeConfig?.requires_proof) && (
+      {}
+      {isMaladieOrRequiresProof && (
         <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <label className="block text-sm font-semibold mb-1 text-yellow-800">Pièce Justificative (Obligatoire)</label>
+          <label className="block text-sm font-semibold mb-1 text-yellow-800">
+            Pièce Justificative (Obligatoire)
+          </label>
           <input 
             type="file" 
+            accept=".pdf,.png,.jpg,.jpeg"
             onChange={(e) => setProof(e.target.files[0])} 
             className="w-full text-sm text-gray-600 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-yellow-100 file:text-yellow-800 hover:file:bg-yellow-200" 
             required 
           />
+          {proof && <p className="text-xs text-gray-500 mt-1">Fichier sélectionné: {proof.name}</p>}
         </div>
       )}
 

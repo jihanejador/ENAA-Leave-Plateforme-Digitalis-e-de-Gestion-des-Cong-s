@@ -39,6 +39,18 @@ Route::middleware('auth:sanctum')->group(function () {
         return response()->json($type, 201);
     });
 
+    Route::get('/notifications', function (Request $request) {
+        return response()->json($request->user()->unreadNotifications);
+    });
+
+    Route::post('/notifications/{id}/read', function (Request $request, $id) {
+        $notification = $request->user()->notifications()->find($id);
+        if ($notification) {
+            $notification->markAsRead();
+        }
+        return response()->json(['message' => 'Notification marquée comme lue']);
+    });
+
     Route::get('/colleagues', function (Request $request) {
         return response()->json(
             \App\Models\User::where('id', '!=', $request->user()->id)->get(['id', 'name'])

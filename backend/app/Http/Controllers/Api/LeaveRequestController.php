@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\LeaveRequest;
 use App\Models\LeaveBalance;
 use App\Models\CourseReplacement;
+use App\Notifications\LeaveStatusNotification;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
@@ -120,6 +121,8 @@ class LeaveRequestController extends Controller
 
         $leaveRequest->save();
 
+        $leaveRequest->user->notify(new LeaveStatusNotification($leaveRequest));
+
         return response()->json([
             'message' => 'Demande traitée par le manager avec succès',
             'leave_request' => $leaveRequest
@@ -163,6 +166,8 @@ class LeaveRequestController extends Controller
                 $balance->save();
             }
         }
+
+        $leaveRequest->user->notify(new LeaveStatusNotification($leaveRequest));
 
         return response()->json([
             'message' => 'Demande validée définitivement par le RH',

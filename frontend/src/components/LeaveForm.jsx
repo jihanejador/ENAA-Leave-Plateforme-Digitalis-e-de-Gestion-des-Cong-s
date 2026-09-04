@@ -5,6 +5,8 @@ import LeaveHistory from './LeaveHistory';
 export default function LeaveForm({ onRequestCreated }) {
   const [leaveTypes, setLeaveTypes] = useState([]);
   const [colleagues, setColleagues] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  
   const [selectedType, setSelectedType] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -19,10 +21,29 @@ export default function LeaveForm({ onRequestCreated }) {
   const [message, setMessage] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
 
+  const fetchNotifications = async () => {
+    try {
+      const res = await API.get('/notifications');
+      setNotifications(res.data || []);
+    } catch (err) {
+      console.error('Erreur chargement notifications:', err);
+    }
+  };
+
   useEffect(() => {
     API.get('/me').then(res => setLeaveTypes(res.data.leave_balances || [])).catch(console.error);
     API.get('/colleagues').then(res => setColleagues(res.data || [])).catch(console.error);
+    fetchNotifications();
   }, []);
+
+  const markNotificationAsRead = async (id) => {
+    try {
+      await API.post(`/notifications/${id}/read`);
+      fetchNotifications();
+    } catch (err) {
+      console.error('Erreur lors du marquage de la notification:', err);
+    }
+  };
 
   const currentTypeConfig = leaveTypes.find(b => b.leave_type?.id === parseInt(selectedType))?.leave_type;
   
@@ -57,6 +78,7 @@ export default function LeaveForm({ onRequestCreated }) {
       setSelectedType('');
       setStartDate('');
       setEndDate('');
+      setIsHalfDay(false);
       setReason('');
       setProof(null);
       setCourseModule('');
@@ -73,6 +95,29 @@ export default function LeaveForm({ onRequestCreated }) {
 
   return (
     <div className="space-y-6">
+      {}
+      {notifications.length > 0 && (
+        <div className="bg-purple-50 border border-purple-200 p-4 rounded-xl shadow-sm text-left">
+          <h3 className="font-bold text-purple-900 mb-2 flex items-center gap-2">
+            <span></span> Notifications non lues
+          </h3>
+          <ul className="space-y-2">
+            {notifications.map((n) => (
+              <li key={n.id} className="flex justify-between items-center bg-white p-3 rounded-lg border border-purple-100 text-sm shadow-xs">
+                <span className="text-gray-800">{n.data?.message}</span>
+                <button 
+                  onClick={() => markNotificationAsRead(n.id)}
+                  className="text-xs bg-purple-100 text-purple-700 hover:bg-purple-200 px-3 py-1 rounded-md font-semibold transition"
+                >
+                  Marquer comme lu
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {}
       <form onSubmit={handleSubmit} className="bg-white p-6 rounded-xl shadow-sm border text-left">
         <h2 className="text-lg font-bold mb-4 text-gray-800">Nouvelle Demande de Congé</h2>
         {message && (

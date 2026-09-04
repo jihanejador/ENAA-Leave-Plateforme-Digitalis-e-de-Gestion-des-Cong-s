@@ -28,7 +28,6 @@ export default function Dashboard() {
         <p className="text-gray-600">Rôle: <span className="font-semibold uppercase text-blue-600">{user.role}</span></p>
       </div>
 
-      {}
       {role === 'manager' && <ManagerDashboard />}
       {(role === 'rh' || role === 'hr') && <HRDashboard />}
       {role === 'employee' && (

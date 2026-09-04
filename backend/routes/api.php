@@ -12,8 +12,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/leave-requests', [LeaveRequestController::class, 'store']);
 
     Route::get('/manager/leave-requests/pending', [LeaveRequestController::class, 'pendingForManager']);
-    Route::patch('/manager/leave-requests/{id}/status', [LeaveRequestController::class, 'updateStatus']);
-    
+    Route::patch('/manager/leave-requests/{id}/status', [LeaveRequestController::class, 'managerApprove']); 
+
     Route::get('/hr/leave-requests/pending', [LeaveRequestController::class, 'pendingForHR']);
     Route::patch('/hr/leave-requests/{id}/status', [LeaveRequestController::class, 'hrApprove']);
 });

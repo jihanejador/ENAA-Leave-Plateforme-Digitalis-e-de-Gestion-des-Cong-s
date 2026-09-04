@@ -20,6 +20,11 @@ export default function MyRequests() {
     }
   };
 
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    return dateString.split('T')[0];
+  };
+
   const getStatusBadge = (status) => {
     switch (status) {
       case 'pending_manager':
@@ -62,7 +67,7 @@ export default function MyRequests() {
                     {req.leave_type?.name || 'N/A'}
                   </td>
                   <td className="p-3">
-                    Du {req.start_date} au {req.end_date}
+                    Du {formatDate(req.start_date)} au {formatDate(req.end_date)}
                     {req.is_half_day && <span className="text-xs text-purple-600 block">(Demi-journée)</span>}
                   </td>
                   <td className="p-3">{req.calculated_days} j</td>

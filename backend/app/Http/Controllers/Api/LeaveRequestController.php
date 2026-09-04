@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\LeaveRequest;
 use App\Models\LeaveBalance;
+use App\Models\CourseReplacement;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class LeaveRequestController extends Controller
 {
@@ -13,10 +15,14 @@ class LeaveRequestController extends Controller
     {
         try {
             $validated = $request->validate([
-                'leave_type_id' => 'required',
+                'leave_type_id' => 'required|exists:leave_types,id',
                 'start_date' => 'required|date',
-                'end_date' => 'required|date',
+                'end_date' => 'required|date|after_or_equal:start_date',
                 'reason' => 'nullable|string',
+                'replacement_user_id' => 'nullable|exists:users,id',
+                'course_module' => 'nullable|string',
+                'proposed_catchup_date' => 'nullable|date',
+                'proof' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048',
             ]);
 
             $user = $request->user();
@@ -25,7 +31,9 @@ class LeaveRequestController extends Controller
             $end = new \DateTime($request->end_date);
             $days = $start->diff($end)->days + 1;
 
-            if ($request->has('is_half_day') && $request->is_half_day == '1') {
+            $isHalfDay = filter_var($request->is_half_day, FILTER_VALIDATE_BOOLEAN);
+
+            if ($isHalfDay) {
                 $days = 0.5;
             }
 
@@ -39,29 +47,45 @@ class LeaveRequestController extends Controller
                 'leave_type_id' => (int) $request->leave_type_id,
                 'start_date' => $request->start_date,
                 'end_date' => $request->end_date,
-                'is_half_day' => $request->is_half_day == '1' ? true : false,
+                'is_half_day' => $isHalfDay ? 1 : 0,
                 'calculated_days' => $days,
                 'reason' => $request->reason,
                 'proof_path' => $proofPath,
                 'status' => 'pending_manager',
             ]);
 
+            if ($request->filled('replacement_user_id')) {
+                CourseReplacement::create([
+                    'leave_request_id' => $leaveRequest->id,
+                    'replacement_user_id' => (int) $request->replacement_user_id,
+                    'course_module' => $request->course_module ?? 'Module Général',
+                    'affected_date' => $request->start_date,
+                    'proposed_catchup_date' => $request->proposed_catchup_date,
+                    'status' => 'pending',
+                ]);
+            }
+
             return response()->json([
                 'message' => 'Demande envoyée avec succès',
-                'leave_request' => $leaveRequest
+                'leave_request' => $leaveRequest->load('courseReplacements')
             ], 201);
 
+        } catch (ValidationException $e) {
+            return response()->json([
+                'message' => 'Erreur de validation',
+                'errors' => $e->errors()
+            ], 422);
         } catch (\Exception $e) {
             return response()->json([
-                'message' => $e->getMessage()
-            ], 422);
+                'message' => 'Erreur Serveur: ' . $e->getMessage()
+            ], 500);
         }
     }
 
     public function index(Request $request)
     {
         return response()->json(
-            LeaveRequest::with(['leaveType'])
+            LeaveRequest::with(['leaveType', 'courseReplacements.replacementUser'])
                 ->where('user_id', $request->user()->id)
                 ->latest()
                 ->get()
@@ -71,7 +95,7 @@ class LeaveRequestController extends Controller
     public function pendingForManager(Request $request)
     {
         return response()->json(
-            LeaveRequest::with(['user', 'leaveType'])
+            LeaveRequest::with(['user', 'leaveType', 'courseReplacements.replacementUser'])
                 ->where('status', 'pending_manager')
                 ->latest()
                 ->get()
@@ -105,7 +129,7 @@ class LeaveRequestController extends Controller
     public function pendingForHR(Request $request)
     {
         return response()->json(
-            LeaveRequest::with(['user', 'leaveType'])
+            LeaveRequest::with(['user', 'leaveType', 'courseReplacements.replacementUser'])
                 ->where('status', 'pending_hr')
                 ->latest()
                 ->get()

@@ -3,16 +3,23 @@ import API from '../api/axios';
 
 export default function LeaveForm({ onRequestCreated }) {
   const [leaveTypes, setLeaveTypes] = useState([]);
+  const [colleagues, setColleagues] = useState([]);
   const [selectedType, setSelectedType] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [isHalfDay, setIsHalfDay] = useState(false);
   const [reason, setReason] = useState('');
   const [proof, setProof] = useState(null);
+
+  const [courseModule, setCourseModule] = useState('');
+  const [replacementUserId, setReplacementUserId] = useState('');
+  const [proposedCatchupDate, setProposedCatchupDate] = useState('');
+
   const [message, setMessage] = useState('');
 
   useEffect(() => {
-    API.get('/me').then(res => setLeaveTypes(res.data.leave_balances || []));
+    API.get('/me').then(res => setLeaveTypes(res.data.leave_balances || [])).catch(console.error);
+    API.get('/colleagues').then(res => setColleagues(res.data || [])).catch(console.error);
   }, []);
 
   const currentTypeConfig = leaveTypes.find(b => b.leave_type?.id === parseInt(selectedType))?.leave_type;
@@ -27,6 +34,10 @@ export default function LeaveForm({ onRequestCreated }) {
     if (reason) formData.append('reason', reason);
     if (proof) formData.append('proof', proof);
 
+    if (courseModule) formData.append('course_module', courseModule);
+    if (replacementUserId) formData.append('replacement_user_id', replacementUserId);
+    if (proposedCatchupDate) formData.append('proposed_catchup_date', proposedCatchupDate);
+
     try {
       await API.post('/leave-requests', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
@@ -37,6 +48,9 @@ export default function LeaveForm({ onRequestCreated }) {
       setEndDate('');
       setReason('');
       setProof(null);
+      setCourseModule('');
+      setReplacementUserId('');
+      setProposedCatchupDate('');
       if (onRequestCreated) onRequestCreated();
     } catch (err) {
       setMessage('Erreur lors de l\'envoi de la demande.');
@@ -97,6 +111,45 @@ export default function LeaveForm({ onRequestCreated }) {
           className="mr-2 h-4 w-4 text-blue-600 rounded" 
         />
         <label htmlFor="halfDay" className="text-sm text-gray-700 font-medium select-none cursor-pointer">Demi-journée</label>
+      </div>
+
+      {}
+      <div className="mb-4 p-4 bg-blue-50 rounded-xl border border-blue-100">
+        <h3 className="text-sm font-bold text-blue-800 mb-3">Continuité Pédagogique (Formateurs)</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div>
+            <label className="block text-xs font-semibold mb-1 text-gray-700">Module / Cours</label>
+            <input 
+              type="text" 
+              placeholder="ex: React / Laravel" 
+              value={courseModule} 
+              onChange={(e) => setCourseModule(e.target.value)} 
+              className="w-full p-2 border rounded-lg text-sm bg-white text-black" 
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold mb-1 text-gray-700">Remplaçant</label>
+            <select 
+              value={replacementUserId} 
+              onChange={(e) => setReplacementUserId(e.target.value)} 
+              className="w-full p-2 border rounded-lg text-sm bg-white text-black"
+            >
+              <option value="">-- Collègue --</option>
+              {colleagues.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold mb-1 text-gray-700">Rattrapage Prévu</label>
+            <input 
+              type="date" 
+              value={proposedCatchupDate} 
+              onChange={(e) => setProposedCatchupDate(e.target.value)} 
+              className="w-full p-2 border rounded-lg text-sm bg-white text-black" 
+            />
+          </div>
+        </div>
       </div>
 
       {Boolean(currentTypeConfig?.requires_proof) && (
